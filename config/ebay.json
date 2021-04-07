@@ -3,14 +3,14 @@
     "clientId": "brianwil-EasyFees-SBX-05b74dfd4-ee3246eb",
     "clientSecret": "SBX-5b74dfd4535a-d322-409a-8b64-2b99",
     "devid": "7d29ff00-ca12-4aec-aeb3-eab7d0689e26",
-    "redirectUri": "http://easyfees.skygate.io/auth/login/granted",
+    "redirectUri": "brian_williams-brianwil-EasyFe-sgyic",
     "baseUrl": "api.sandbox.ebay.com"
   },
   "PRODUCTION": {
     "clientId": "brianwil-EasyFees-SBX-05b74dfd4-ee3246eb",
     "clientSecret": "SBX-5b74dfd4535a-d322-409a-8b64-2b99",
     "devid": "7d29ff00-ca12-4aec-aeb3-eab7d0689e26",
-    "redirectUri": "http://easyfees.skygate.io/auth/login/granted",
+    "redirectUri": "brian_williams-brianwil-EasyFe-sgyic",
     "baseUrl": "api.ebay.com"
   }
 }
