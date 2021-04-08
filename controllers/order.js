@@ -1,10 +1,13 @@
+require('dotenv').config();
 const axios = require('axios');
 
-const EBAY_API_URL = 'https://api.ebay.com/sell/fulfillment/v1/order/';
+const EBAY_API_URL = process.env.EBAY_ENV === 'PRODUCTION' ? 'https://api.ebay.com/sell/fulfillment/v1/order' : 'https://api.sandbox.ebay.com/sell/fulfillment/v1/order';
 const EBAY_API_PARAMS = '?fieldGroups=TAX_BREAKDOWN';
 
 exports.getOrder = (req, res, next) => {
-    const orderID = req.params.id;
+    const access_token = req.query.access_token;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    const orderID = req.params.id;  
     axios.get(`${EBAY_API_URL}/${orderID}/${EBAY_API_PARAMS}`).then((response) => {
         const order = response.data;
         res.status(200).send({
@@ -51,6 +54,24 @@ exports.getOrder = (req, res, next) => {
                     };
                 }),
             }
+        });
+    });
+};
+
+exports.getAllOrders = (req, res, next) => {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${req.body.token}`;
+    axios.get(EBAY_API_URL).then((response) => {
+        const orders = response.data;
+        const ids = orders.orders.map((item, index) => {
+            return item.orderId;
+        });
+        res.status(200).send({
+            orders: ids
+        });
+    }).catch((error) => {
+        res.status(500).send({
+            error: true,
+            message: error
         });
     });
 };

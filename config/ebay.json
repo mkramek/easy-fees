@@ -7,8 +7,8 @@
     "baseUrl": "api.sandbox.ebay.com"
   },
   "PRODUCTION": {
-    "clientId": "brianwil-EasyFees-SBX-05b74dfd4-ee3246eb",
-    "clientSecret": "SBX-5b74dfd4535a-d322-409a-8b64-2b99",
+    "clientId": "brianwil-EasyFees-PRD-05b74df74-4b9ac0cb",
+    "clientSecret": "PRD-5b74df7479bc-c452-4fc1-a757-583d",
     "devid": "7d29ff00-ca12-4aec-aeb3-eab7d0689e26",
     "redirectUri": "brian_williams-brianwil-EasyFe-sgyic",
     "baseUrl": "api.ebay.com"

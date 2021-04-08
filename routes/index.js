@@ -14,7 +14,9 @@ router.get('/', function (req, res, next) {
 
 router.get('/auth/login/url', authController.getUrl);
 router.get('/auth/accepted', authController.onGranted);
+router.post('/auth/access_token', authController.setAuthHeader);
 
+router.post('/order', orderController.getAllOrders);
 router.get('/order/:id', orderController.getOrder);
 router.get('/order/:id/costs', orderController.getOrderAdditionalCosts);
 

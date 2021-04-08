@@ -9,6 +9,14 @@ const authToken = new EbayAuthToken({
     filePath: './config/ebay.json'
 });
 
+exports.setAuthHeader = (req, res, next) => {
+    const token = req.body.access_token;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    res.status(200).send({
+        error: false
+    });
+};
+
 exports.getUrl = (req, res, next) => {
     const env = process.env.EBAY_ENV || "SANDBOX";
     const uuid = uuid4();
@@ -47,10 +55,11 @@ exports.onGranted = (req, res, next) => {
             if (response.error) {
                 res.status(500).send({
                     error: true,
-                    message: response.error_description
-                })
+                    message: response.error_description,
+                    response: response
+                });
             } else {
-                axios.defaults.headers.common['Authorization'] = `IAF ${response.access_token}`;
+                axios.defaults.headers.common['Authorization'] = `Bearer ${response.access_token}`;
                 res.status(200).send({
                     error: false,
                     access_token: response.access_token,
