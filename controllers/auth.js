@@ -24,7 +24,7 @@ exports.getUrl = (req, res, next) => {
         const repo = DatabaseHelper.getRepository("SavedUser");
         const user = new SavedUser(uuid, null);
         // repo.save(user);
-        const url = authToken.generateUserAuthorizationUrl(env, ['https://api.ebay.com/oauth/api_scope/sell.inventory', 'https://api.ebay.com/oauth/api_scope/sell.account', 'https://api.ebay.com/oauth/api_scope/sell.fulfillment'], {
+        const url = authToken.generateUserAuthorizationUrl(env, ['https://api.ebay.com/oauth/api_scope/sell.inventory', 'https://api.ebay.com/oauth/api_scope/sell.account', 'https://api.ebay.com/oauth/api_scope/sell.fulfillment', 'https://api.ebay.com/oauth/api_scope/sell.finances', 'https://api.ebay.com/oauth/api_scope/sell.marketing'], {
             state: uuid,
             prompt: false
         });
@@ -40,7 +40,8 @@ exports.getUrl = (req, res, next) => {
             message: `Failed to authorize the application. Cause: [${error}]`
         });
     }
-}
+};
+
 exports.onGranted = (req, res, next) => {
     DatabaseHelper.getRepository(SavedUser).then(async (repo) => {
         const user = await repo.findOne({
@@ -69,4 +70,4 @@ exports.onGranted = (req, res, next) => {
         });
         // repo.save(user);
     });
-}
+};

@@ -1,120 +1,70 @@
 require('dotenv').config();
 const axios = require('axios');
-
-const EBAY_API_URL = process.env.EBAY_ENV === 'PRODUCTION' ? 'https://api.ebay.com/sell/fulfillment/v1/order' : 'https://api.sandbox.ebay.com/sell/fulfillment/v1/order';
+const urlBuilder = require('../helpers/urlBuilder');
+const arrayChunk = require('../helpers/arrayChunk')
+const EBAY_API_URL = urlBuilder.buildUrl('/sell/fulfillment/v1/order');
 const EBAY_API_PARAMS = '?fieldGroups=TAX_BREAKDOWN';
+const EBAY_FINANCES_API = urlBuilder.buildUrl('/sell/finances/v1/transaction?limit=1000');
+const OrderService = require('../services/orderService');
 
-exports.getOrder = (req, res, next) => {
-    const access_token = req.query.access_token;
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-    const orderID = req.params.id;  
-    axios.get(`${EBAY_API_URL}/${orderID}/${EBAY_API_PARAMS}`).then((response) => {
-        const order = response.data;
-        res.status(200).send({
-            error: false,
-            message: '',
-            orderID: orderID,
-            currency: order.total.currency,
-            items: order.lineItems.map((lineItem) => {
-                return {
-                    itemID: lineItem.lineItemId,
-                    costs: {
-                        item: lineItem.lineItemCost.value,
-                        delivery: lineItem.deliveryCost.map((cost) => {
-                            return {
-                                type: cost,
-                                amount: cost.value
-                            }
-                        }),
-                        total: lineItem.total.value
-                    },
-                    taxes: {
-                        nonEbay: order.taxes.map((tax) => {
-                            return {
-                                type: tax.taxType,
-                                amount: tax.amount.value,
-                            }
-                        }),
-                        ebay: order.ebayCollectAndRemitTaxes.map((ebayTax) => {
-                            return {
-                                type: ebayTax.taxType,
-                                amount: ebayTax.amount.value,
-                                netOrGross: ebayTax.collectionType
-                            }
-                        })
-                    }
-                }
-            }),
-            orderTotal: order.paymentSummary.totalDueSeller.value,
-            payment: {
-                methods: order.paymentSummary.payments.map((payment) => {
-                    return {
-                        name: payment.paymentMethod,
-                        amount: payment.amount.value
-                    };
-                }),
-            }
+exports.getOrderFees = (req, res, next) => {
+    axios.defaults.headers.common['Authorization'] = req.headers.authorization;
+    axios.get(EBAY_FINANCES_API).then((response) => {
+        console.log('getOrderFees - before filter + map');
+        const orderIds = response.data.transactions.filter(x => x.orderId != null).map((transaction) => transaction.orderId);
+        let promises = [];
+        let orders = [];
+        orderIds.arrayChunk(50).map((orderChunk) => {
+            const requestUrl = `${EBAY_API_URL}?orderIds=${orderChunk}&limit=1000&fieldGroups=TAX_BREAKDOWN`;
+            console.log(`requestUrl: ${requestUrl}`);
+            promises.push(
+                axios.get(requestUrl).then(response => {
+                    console.log(`response: ${JSON.stringify(response.data.orders)}`);
+                    response.data.orders.forEach(order => {
+                        orders.push(order);
+                    });
+                })
+            );
         });
-    });
-};
-
-exports.getAllOrders = (req, res, next) => {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${req.body.token}`;
-    axios.get(EBAY_API_URL).then((response) => {
-        const orders = response.data;
-        const ids = orders.orders.map((item, index) => {
-            return item.orderId;
-        });
-        res.status(200).send({
-            orders: ids
-        });
-    }).catch((error) => {
-        res.status(500).send({
-            error: true,
-            message: error
-        });
-    });
-};
-
-exports.getOrderAdditionalCosts = (req, res, next) => {
-    const orderID = req.params.id;
-    axios.get(`${EBAY_API_URL}/${orderID}/${EBAY_API_PARAMS}`).then((response) => {
-        const order = response.data;
-        res.status(200).send({
-            error: false,
-            message: '',
-            orderID: orderID,
-            currency: order.total.currency,
-            items: order.lineItems.map((lineItem) => {
-                return {
-                    itemID: lineItem.lineItemId,
-                    costs: {
-                        item: lineItem.lineItemCost.value,
-                        delivery: lineItem.deliveryCost.map((cost) => {
-                            return {
-                                type: cost,
-                                amount: cost.value
-                            }
-                        }),
-                        itemTotal: lineItem.total.value
-                    },
-                    taxes: {
-                        nonEbay: order.taxes.map((tax) => {
-                            return {
-                                type: tax.taxType,
-                                amount: tax.amount.value,
-                            }
-                        }),
-                        ebay: order.ebayCollectAndRemitTaxes.map((ebayTax) => {
-                            return {
-                                type: ebayTax.taxType,
-                                amount: ebayTax.amount.value,
-                                netOrGross: ebayTax.collectionType
-                            }
-                        })
-                    }
-                }
-            }),
+        Promise.all(promises).then(() => {
+            console.log(`orders - before: ${JSON.stringify(orders)}`);
+            let orderFees = [];
+            orders.forEach(order => {
+                let orderService = new OrderService(order);
+                orderFees.push({
+                    orderId : orderService.getOrderId(),
+                    lineItemId: orderService.getLineItemId(),
+                    shippingPaidByBuyer: orderService.getShippingPaidByBuyer(),
+                    completeSoldForPriceSalesTax: orderService.getCompleteSoldForPriceSalesTax(),
+                    completeSoldForPriceSalesTaxShippingPaidByBuyer: orderService.getCompleteSoldForPriceSalesTaxShippingPaidByBuyer(),
+                    salesTax: orderService.getSalesTax(),
+                    soldForPrice: orderService.getSoldForPrice(),
+                    ebayFee: orderService.getEbayFee(),
+                    paypalFee1: orderService.getPaypalFee1(),
+                    paypalFee2: orderService.getPaypalFee2(),
+                    paypalFeeTotal: orderService.getPaypalFeeTotal(),
+                    totalFeesCollectedByEbay: orderService.getTotalFeesCollectedByEbay(),
+                    promotedListingsFeePercent: orderService.getPromotedListingsFeePercent(),
+                    promotedListingsFee: orderService.getPromotedListingsFee(),
+                    ebayTaxPercentCollected: orderService.getEbayTaxPercentCollected(),
+                    taxesCollectedByEbay: orderService.getTaxesCollectedByEbay(),
+                    feeTotal: orderService.getFeeTotal(),
+                    costOfItem: orderService.getCostOfItem(),
+                    shippingFee: orderService.getShippingFee(),
+                    completeAmountOwed: orderService.getCompleteAmountOwed(),
+                    frontEndProfit: orderService.getFrontEndProfit(),
+                    totalProfitPercent: orderService.getTotalProfitPercent(),
+                    cashBackProfitPercent: orderService.getCashBackProfitPercent(),
+                    completeTotalProfitWithCashbackCreditCard: orderService.getCompleteTotalProfitWithCashbackCreditCard(),
+                    completeTotalProfitPercentWithCashbackCreditCard: orderService.getCompleteTotalProfitPercentWithCashbackCreditCard(),
+                    cancelled: orderService.getCancelled(),
+                    fullReturn: orderService.getFullReturn(),
+                    partialReturn: orderService.getPartialReturn()
+                })
+            });
+            res.status(200).send({
+                orderFees: orderFees
+            });
         });
     });
 };
